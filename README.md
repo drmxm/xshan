@@ -1,5 +1,76 @@
+# XShan
 
-Structure: 
+## Run
+
+```bash
+# 1) Copy env and tweak if needed
+cp .env.example .env
+
+# 2) Build only what you need
+docker compose --profile sensors --profile infra build
+
+# 3) Run UVC sensor → Foxglove bridge
+docker compose --profile sensors --profile infra up -d
+
+# 4) Tail camera logs
+docker logs -f xshan-sensors-uvc-rgb
+
+# 0) Latest is working
+cd xshan/deploy/compose
+docker compose --profile sensors --profile infra build --no-cache --pull
+docker compose --profile sensors --profile infra up -d --force-recreate --remove-orphans
+
+```
+
+awesome — glad it’s working. here’s exactly what you asked for, short and to the point.
+
+# quick commands
+
+From `xshan/deploy/compose`:
+
+**Stop both**
+
+```bash
+docker compose --profile sensors --profile infra stop sensors_uvc_rgb infra
+```
+
+**Start both (after stop)**
+
+```bash
+docker compose --profile sensors --profile infra start sensors_uvc_rgb infra
+```
+
+**Restart both**
+
+```bash
+docker compose --profile sensors --profile infra restart sensors_uvc_rgb infra
+```
+
+**Tear down (remove containers)**
+
+```bash
+docker compose --profile sensors --profile infra down
+```
+
+(Direct container names also work: `docker (stop|start|restart) xshan-sensors-uvc-rgb xshan-infra`)
+
+# how to see which camera format was used
+
+Any of these will tell you:
+
+```bash
+# 1) Your start.sh prints it (AUTO → choice + pipeline):
+docker logs --tail 200 xshan-sensors-uvc-rgb | egrep 'AUTO mode selected|Building pipeline for CAM_MODE|[GSCAM]'
+
+# 2) Show the selected mode + exact pipeline inside the container:
+docker exec -it xshan-sensors-uvc-rgb bash -lc 'echo "CAM_MODE=${CAM_MODE}"; printf "%s\n" "$GSCAM_CONFIG"'
+
+# 3) Ask the device what it negotiated (current + supported formats):
+docker exec -it xshan-sensors-uvc-rgb bash -lc 'v4l2-ctl --device=${CAMERA_DEVICE:-/dev/video0} --get-fmt-video --list-formats-ext'
+```
+
+
+## Structure: 
 
 ```bash
 xshan/

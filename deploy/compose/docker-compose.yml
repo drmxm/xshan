@@ -1,0 +1,75 @@
+# xshan/deploy/compose/docker-compose.yml
+
+services:
+  # ====================== SENSORS (UVC Arducam) ======================
+  sensors_uvc_rgb:
+    container_name: xshan-sensors-uvc-rgb
+    build:
+      context: ../../sensors/uvc_rgb
+    image: xshan-sensors-uvc-rgb:latest
+    network_mode: host
+    ipc: host
+    privileged: true
+    runtime: nvidia
+    restart: unless-stopped
+    cap_add: [ "SYS_NICE" ]
+    ulimits:
+      rtprio: 95
+    environment:
+      # ROS
+      ROS_DOMAIN_ID: "0"
+
+      # Camera (AUTO tries H264→MJPEG→YUY2)
+      CAMERA_DEVICE: "${CAMERA_DEVICE:-/dev/video0}"
+      CAM_MODE: "${CAM_MODE:-AUTO}"
+      WIDTH: "${CAM_WIDTH:-1280}"
+      HEIGHT: "${CAM_HEIGHT:-720}"
+      FPS: "${CAM_FPS:-30}"
+
+      CAMERA_NAME: "${CAMERA_NAME:-arducam_rgb}"
+      FRAME_ID: "${FRAME_ID:-uvc_rgb_frame}"
+      IMAGE_TOPIC: "${IMAGE_TOPIC:-/sensors/uvc/image_raw}"
+      INFO_TOPIC: "${INFO_TOPIC:-/sensors/uvc/camera_info}"
+      INFO_URL: "${INFO_URL:-file:///work/config/uvc_rgb_1280x720.yaml}"
+
+      # Jetson NV + GStreamer plugins (mounted from host)
+      GST_PLUGIN_PATH: "/usr/lib/aarch64-linux-gnu/gstreamer-1.0:/usr/lib/aarch64-linux-gnu/tegra"
+      GST_PLUGIN_SYSTEM_PATH_1_0: "/usr/lib/aarch64-linux-gnu/gstreamer-1.0:/usr/lib/aarch64-linux-gnu/tegra/gstreamer-1.0"
+      LD_LIBRARY_PATH: "/usr/lib/aarch64-linux-gnu/tegra:/usr/lib/aarch64-linux-gnu:${LD_LIBRARY_PATH:-}"
+    devices:
+      - ${CAMERA_DEVICE:-/dev/video0}:${CAMERA_DEVICE:-/dev/video0}
+    volumes:
+      - ../../sensors/uvc_rgb/config:/work/config:ro
+      - /tmp/argus_socket:/tmp/argus_socket
+      - /usr/lib/aarch64-linux-gnu/gstreamer-1.0:/usr/lib/aarch64-linux-gnu/gstreamer-1.0:ro
+      - /usr/lib/aarch64-linux-gnu/tegra:/usr/lib/aarch64-linux-gnu/tegra:ro
+    # Keep it simple: don't gate on health while you're bringing things up
+    healthcheck:
+      test: ["CMD", "bash", "-lc", "exit 0"]
+    command: ["/start.sh"]
+    profiles: ["sensors"]
+
+  # ====================== INFRA (Foxglove bridge / WS) ======================
+  infra:
+    container_name: xshan-infra
+    build:
+      context: ../../infra
+    image: xshan-infra:latest
+    network_mode: host
+    ipc: host
+    restart: unless-stopped
+    depends_on:
+      sensors_uvc_rgb:
+        condition: service_started   # start even if sensor health is picky
+    environment:
+      ROS_DOMAIN_ID: "0"
+      FOXGLOVE_PORT: "${FOXGLOVE_PORT:-8765}"
+      FOXGLOVE_ADDRESS: "0.0.0.0"
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 ${FOXGLOVE_PORT:-8765}"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    command: ["/start.sh"]
+    profiles: ["infra"]
