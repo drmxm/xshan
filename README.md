@@ -1,5 +1,14 @@
 # XShan
 
+## Connect to NVIDIA Account for nvcr.io/nvidia/l4t-base:r36.2.0 docker images
+
+### 1) Create an NGC account (if you don’t have one) and generate an API key
+### 2) Login to nvcr.io with the special username:
+```bash
+docker login nvcr.io -u '$oauthtoken' -p '<YOUR_NGC_API_KEY>'
+```
+
+
 ## Run
 
 ```bash

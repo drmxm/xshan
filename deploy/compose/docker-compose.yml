@@ -73,3 +73,19 @@ services:
       start_period: 5s
     command: ["/start.sh"]
     profiles: ["infra"]
+  # ====================== DETECTOR (Face detection) ======================
+  detector:
+    container_name: xshan-detector
+    build:
+      context: ../../perception/detector
+    image: xshan-detector:latest
+    network_mode: host
+    ipc: host
+    restart: unless-stopped
+    environment:
+      ROS_DOMAIN_ID: "0"
+      RMW_IMPLEMENTATION: "rmw_fastrtps_cpp"
+      IMAGE_TOPIC: "/camera/image_raw"                 # <-- matches your camera
+      ANNOTATED_TOPIC: "/perception/image_annotated"
+      DETECTIONS_TOPIC: "/perception/detections"
+    profiles: ["perception"]

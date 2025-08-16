@@ -20,3 +20,8 @@ If images don’t appear:
 - Verify the camera publisher is running and `/sensors/uvc/image_raw` exists.
 - Check QoS: set BestEffort/Volatile in `params/foxglove.params.yaml` for image topics.
 - Inspect container logs: `docker logs -f xshan-infra`.
+
+
+### from xshan/deploy/compose rebuild and redeploy
+docker compose build detector --no-cache --pull
+docker compose up -d --force-recreate detector
